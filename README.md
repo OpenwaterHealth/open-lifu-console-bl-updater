@@ -93,8 +93,8 @@ The build needs the Arm GNU Toolchain, CMake and Ninja (the `stm32-build-env` im
 plus the research bootloader binary from its GitHub release:
 
 ```sh
-gh release download 1.1.0-rc.3 -R OpenwaterHealth/open-lifu-console-bl -p lifu-console-bl.bin -D blimg
-cmake --preset Release -DBL_IMAGE=$PWD/blimg/lifu-console-bl.bin -DBL_TAG=1.1.0-rc.3
+gh release download 1.1.0 -R OpenwaterHealth/open-lifu-console-bl -p lifu-console-bl.bin -D blimg
+cmake --preset Release -DBL_IMAGE=$PWD/blimg/lifu-console-bl.bin -DBL_TAG=1.1.0
 cmake --build build/Release
 bash scripts/check_ramfunc.sh build/Release/open-lifu-console-bl-updater.elf
 ```
