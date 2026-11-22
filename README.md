@@ -4,8 +4,10 @@ One-shot firmware for the Open-LIFU **console** (STM32F072RB). It replaces the s
 bootloader from inside the application slot, then resets into the new bootloader's USB
 DFU, where the host installs the application.
 
-It exists for one migration: research units on bootloader **1.0.x** (shipped with
-console app 1.2.6, bootloader `1.0.3-rc.1`) to bootloader **1.1.x**. Bootloader 1.1.0
+It moves a research unit to the research bootloader it embeds. The first use is units on
+bootloader **1.0.x** (shipped with console app 1.2.6, bootloader `1.0.3-rc.1`) to bootloader **1.1.x**; since it is signed at
+1.3.0 (see "Versions"), it also moves a unit on an older 1.1.x research bootloader to the
+embedded one, e.g. 1.1.0-rc.N to the 1.1.0 release. Bootloader 1.1.0
 moves the end of the slot and adds the preset page, so those units need it before
 console app 1.3.x. Both bootloaders trust the same research key, and this image is
 signed with it. Clinical units are built with the new bootloader and never run this.
@@ -17,7 +19,7 @@ See `docs/api/LIFUFirmwareUpdate.md`, "Replacing a 1.0.x bootloader".
 
 ## What it does
 
-It runs as an ordinary application launched by bootloader 1.0.x at `0x08010400`:
+It runs as an ordinary application launched by the research bootloader (1.0.x or 1.1.x) at `0x08010400`:
 
 1. It masks interrupts, turns LED_ON on and makes sure the HSI oscillator runs (the F0
    flash needs it to erase and program).
@@ -67,12 +69,23 @@ The image (about 52 KB) stays below page 61, so it fits both slots.
 ## Versions
 
 The **release tag** (e.g. `1.0.0`) versions this repository. The image is signed with
-**`FW_VERSION` = 1.2.31** (FwVersion 2143), which `build.yml` pins:
+**`FW_VERSION` = 1.3.0** (FwVersion 2144), the version of the console application released
+with it. `build.yml` pins it:
 
-- 1.2.31 is above every fielded console application (1.2.x), so the old bootloader's DFU
-  installs it and its floor check accepts it;
-- it is below the first application for the new bootloader (1.3.0, 2144), which then
-  installs without a downgrade even if the floor were not erased.
+- A bootloader refuses an image below the installed application or its anti-rollback floor.
+  1.3.0 is at or above every application the updater runs over: console 1.2.x on a 1.0.x
+  bootloader, and 1.3.0 on a 1.1.x bootloader (every 1.3.0-rc.N signs as 1.3.0). So it moves
+  both to the embedded bootloader.
+- It is no higher than the application installed after it. On success the floor is erased
+  anyway; if the updater refuses (option bytes not open), nothing is written, the floor is at
+  most 1.3.0, and the release application still installs.
+- Raise it with the application. When the console application moves to 1.3.1 or later, sign the
+  updater at that version, or units on the newer application refuse it. The SDK refuses
+  before DFU when the updater is signed below the installed application.
+
+Before this, the updater was signed 1.2.31 (2143): above every fielded 1.2.x application
+and below 1.3.0. That only ran on 1.0.x bootloaders; a 1.1.x bootloader with a 1.3.0
+application refused it.
 
 ## Build
 
@@ -92,7 +105,7 @@ anything in flash. Signing it:
 
 ```sh
 python -m openlifu_sdk.io.LIFUCrypto sign --keys <research keys dir> \
-    --firmware build/Release/open-lifu-console-bl-updater.bin --version 1.2.31 --output updater-signed.bin
+    --firmware build/Release/open-lifu-console-bl-updater.bin --version 1.3.0 --output updater-signed.bin
 ```
 
 ## CI
@@ -151,8 +164,8 @@ the clinical application, then the clinical presets. With openlifu-sdk that is
   power and do not unplug USB.
 - The updater refuses a unit whose option bytes are not open, so it never touches a
   protected (clinical) unit.
-- This is a one-way migration. Once the slot holds an application above 1.2.31, the new
-  bootloader will not install the updater again.
+- A bootloader refuses this updater once the slot holds an application above `FW_VERSION`.
+  The updater released with that application, signed at its version, covers those units.
 
 ## Licence
 
